@@ -7,10 +7,10 @@ import dbus.service
 
 import RPi.GPIO as GPIO
 
-hall_in = 7 
+sensor_in = 7 
 
 GPIO.setmode(GPIO.BOARD)
-GPIO.setup(hall_in,GPIO.IN)
+GPIO.setup(sensor_in,GPIO.IN)
 
 
 import array
@@ -410,7 +410,7 @@ class TestService(Service):
     Dummy test service that provides characteristics and descriptors that
     exercise various API functionality.
     """
-    TEST_SVC_UUID = '12345678-1234-5678-1234-56789abcdef0'
+    TEST_SVC_UUID = '00002803-0000-1000-8000-00805f9b34e0'
 
     def __init__(self, bus, index):
         Service.__init__(self, bus, index, self.TEST_SVC_UUID, True)
@@ -421,7 +421,7 @@ class TestCharacteristic(Characteristic):
     Dummy test characteristic. Allows writing arbitrary bytes to its value, and
     contains "extended properties", as well as a test descriptor.
     """
-    TEST_CHRC_UUID = '12345678-1234-5678-1234-56789abcdef1'
+    TEST_CHRC_UUID = '00002803-0000-1000-8000-00805f9b34e1'
 
 #    def addTest(self):
 #		if(self.value > 100):
@@ -444,7 +444,7 @@ class TestCharacteristic(Characteristic):
 		
     def addTest(self):
 
-        self.value = GPIO.input(hall_in)^01 
+        self.value = GPIO.input(sensor_in)^01 
         print('Hall value: ' + repr(self.value))
         return True
 
@@ -462,7 +462,7 @@ class TestDescriptor(Descriptor):
     """
     Dummy test descriptor. Returns a static value.
     """
-    TEST_DESC_UUID = '12345678-1234-5678-1234-56789abcdef2'
+    TEST_DESC_UUID = '00002803-0000-1000-8000-00805f9b34e2'
 
     def __init__(self, bus, index, characteristic):
         Descriptor.__init__(
