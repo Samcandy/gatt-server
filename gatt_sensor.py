@@ -445,7 +445,7 @@ class TestCharacteristic(Characteristic):
     def addTest(self):
 
         self.value = GPIO.input(sensor_in)^01 
-        print('Hall value: ' + repr(self.value))
+        print('sensor value: ' + repr(self.value))
         return True
 
     def ReadValue(self, options):
