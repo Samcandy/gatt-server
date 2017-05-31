@@ -3,7 +3,7 @@ import os,sys
 import time
 import subprocess
 
-gatt = 'sudo python gatt_sensor.py'
+gatt = 'sudo python /home/pi/gatt-server/gatt_sensor.py'
 restart = 'sudo systemctl restart bluetooth'
 status = 'sudo systemctl status bluetooth'
 pow_off = 'sudo /home/pi/bluez-5.45/tools/btmgmt -i hci0 power off'
@@ -14,6 +14,7 @@ adv_on = 'sudo /home/pi/bluez-5.45/tools/btmgmt -i hci0 advertising on'
 pow_on = 'sudo /home/pi/bluez-5.45/tools/btmgmt -i hci0 power on'
 run = 'sudo /home/pi/bluez-5.45/tools/btgatt-server -i hci0 -s low -t public -r -v'
 
+os.system(restart)
 os.system(pow_off)
 os.system(le_on)
 os.system(connect_on)
@@ -21,7 +22,10 @@ os.system(bredr_off)
 os.system(adv_on)
 os.system(pow_on)
 #os.system(run)
+
+print "GATT Start..."
 os.system(gatt)
+print "GATT Finished"
 
 #print "ready Go"
 #while 1:
