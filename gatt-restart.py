@@ -21,9 +21,9 @@ os.system(bredr_off)
 os.system(adv_on)
 os.system(pow_on)
 #os.system(run)
-#os.system(gatt)
+os.system(gatt)
 
-print "ready Go"
+#print "ready Go"
 #while 1:
 #os.system('sudo systemctl restart bluetooth')
 #value =subprocess.Popen('sudo python gatt_sensor.py',shell=True)
