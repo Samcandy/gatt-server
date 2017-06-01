@@ -1,8 +1,7 @@
-# Gatt Server
-## 首先要安裝BlueZ  
+# Gatt Server for raspberry pi 3
+## 首先要安裝BlueZ  
   
-請到下列網址下載最新的BlueZ  
+請到 BlueZ 的官方網站下載最新的版本  
 http://www.bluez.org/  
-
-
-
+  
+  
