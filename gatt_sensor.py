@@ -4,14 +4,11 @@ import dbus
 import dbus.exceptions
 import dbus.mainloop.glib
 import dbus.service
-
 import RPi.GPIO as GPIO
-
-sensor_in = 7 
+sensor_in = 7
 
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(sensor_in,GPIO.IN)
-
 
 import array
 try:
@@ -33,9 +30,6 @@ GATT_SERVICE_IFACE = 'org.bluez.GattService1'
 GATT_CHRC_IFACE =    'org.bluez.GattCharacteristic1'
 GATT_DESC_IFACE =    'org.bluez.GattDescriptor1'
 
-LE_ADVERTISING_MANAGER_IFACE = 'org.bluez.LEAdvertisingManager1'
-LE_ADVERTISEMENT_IFACE = 'org.bluez.LEAdvertisement1'
-
 class InvalidArgsException(dbus.exceptions.DBusException):
     _dbus_error_name = 'org.freedesktop.DBus.Error.InvalidArgs'
 
@@ -51,17 +45,17 @@ class InvalidValueLengthException(dbus.exceptions.DBusException):
 class FailedException(dbus.exceptions.DBusException):
     _dbus_error_name = 'org.bluez.Error.Failed'
 
-
 class Application(dbus.service.Object):
     """
     org.bluez.GattApplication1 interface implementation
     """
     def __init__(self, bus):
-        self.path = '/test'
+        self.path = '/'
         self.services = []
         dbus.service.Object.__init__(self, bus, self.path)
-        self.add_service(BatteryService(bus, 1))
-        self.add_service(TestService(bus, 2))
+        #self.add_service(HeartRateService(bus, 0))
+        #self.add_service(BatteryService(bus, 1))
+        self.add_service(TestService(bus, 0))
 
     def get_path(self):
         return dbus.ObjectPath(self.path)
@@ -84,7 +78,6 @@ class Application(dbus.service.Object):
                     response[desc.get_path()] = desc.get_properties()
 
         return response
-
 
 class Service(dbus.service.Object):
     """
@@ -134,7 +127,6 @@ class Service(dbus.service.Object):
             raise InvalidArgsException()
 
         return self.get_properties()[GATT_SERVICE_IFACE]
-
 
 class Characteristic(dbus.service.Object):
     """
@@ -258,164 +250,16 @@ class Descriptor(dbus.service.Object):
         print('Default WriteValue called, returning error')
         raise NotSupportedException()
 
-
-class Advertisement(dbus.service.Object):
-    PATH_BASE = '/org/bluez/example/advertisement'
-
-    def __init__(self, bus, index, advertising_type):
-        self.path = self.PATH_BASE + str(index)
-        self.bus = bus
-        self.ad_type = advertising_type
-        self.service_uuids = None
-        self.manufacturer_data = None
-        self.solicit_uuids = None
-        self.service_data = None
-        self.include_tx_power = None
-        dbus.service.Object.__init__(self, bus, self.path)
-
-    def get_properties(self):
-        properties = dict()
-        properties['Type'] = self.ad_type
-        if self.service_uuids is not None:
-            properties['ServiceUUIDs'] = dbus.Array(self.service_uuids,
-                                                    signature='s')
-        if self.solicit_uuids is not None:
-            properties['SolicitUUIDs'] = dbus.Array(self.solicit_uuids,
-                                                    signature='s')
-        if self.manufacturer_data is not None:
-            properties['ManufacturerData'] = dbus.Dictionary(
-                self.manufacturer_data, signature='qv')
-        if self.service_data is not None:
-            properties['ServiceData'] = dbus.Dictionary(self.service_data,
-                                                        signature='sv')
-        if self.include_tx_power is not None:
-            properties['IncludeTxPower'] = dbus.Boolean(self.include_tx_power)
-        return {LE_ADVERTISEMENT_IFACE: properties}
-
-    def get_path(self):
-        return dbus.ObjectPath(self.path)
-
-    def add_service_uuid(self, uuid):
-        if not self.service_uuids:
-            self.service_uuids = []
-        self.service_uuids.append(uuid)
-
-    def add_solicit_uuid(self, uuid):
-        if not self.solicit_uuids:
-            self.solicit_uuids = []
-        self.solicit_uuids.append(uuid)
-
-    def add_manufacturer_data(self, manuf_code, data):
-        if not self.manufacturer_data:
-            self.manufacturer_data = dbus.Dictionary({}, signature='qv')
-        self.manufacturer_data[manuf_code] = dbus.Array(data, signature='y')
-
-    def add_service_data(self, uuid, data):
-        if not self.service_data:
-            self.service_data = dbus.Dictionary({}, signature='sv')
-        self.service_data[uuid] = dbus.Array(data, signature='y')
-
-    @dbus.service.method(DBUS_PROP_IFACE,
-                         in_signature='s',
-                         out_signature='a{sv}')
-    def GetAll(self, interface):
-        print 'GetAll'
-        if interface != LE_ADVERTISEMENT_IFACE:
-            raise InvalidArgsException()
-        print 'returning props'
-        return self.get_properties()[LE_ADVERTISEMENT_IFACE]
-
-    @dbus.service.method(LE_ADVERTISEMENT_IFACE,
-                         in_signature='',
-                         out_signature='')
-    def Release(self):
-        print '%s: Released!' % self.path
-
-class TestAdvertisement(Advertisement):
-
-    def __init__(self, bus, index):
-        Advertisement.__init__(self, bus, index, 'peripheral')
-        self.add_service_uuid('180D')
-        self.add_service_uuid('180F')
-        self.add_manufacturer_data(0xffff, [0x00, 0x01, 0x02, 0x03, 0x04])
-        self.add_service_data('9999', [0x00, 0x01, 0x02, 0x03, 0x04])
-        self.include_tx_power = True
-
-class BatteryService(Service):
-    """
-    Fake Battery service that emulates a draining battery.
-    """
-    BATTERY_UUID = '180f'
-
-    def __init__(self, bus, index):
-        Service.__init__(self, bus, index, self.BATTERY_UUID, True)
-        self.add_characteristic(BatteryLevelCharacteristic(bus, 0, self))
-
-
-class BatteryLevelCharacteristic(Characteristic):
-    """
-    Fake Battery Level characteristic. The battery level is drained by 2 points
-    every 5 seconds.
-    """
-    BATTERY_LVL_UUID = '2a19'
-
-    def __init__(self, bus, index, service):
-        Characteristic.__init__(
-                self, bus, index,
-                self.BATTERY_LVL_UUID,
-                ['read', 'notify'],
-                service)
-        self.notifying = False
-        self.battery_lvl = 100
-        GObject.timeout_add(5000, self.drain_battery)
-
-    def notify_battery_level(self):
-        if not self.notifying:
-            return
-        self.PropertiesChanged(
-                GATT_CHRC_IFACE,
-                { 'Value': [dbus.Byte(self.battery_lvl)] }, [])
-
-    def drain_battery(self):
-        if self.battery_lvl > 0:
-            self.battery_lvl -= 2
-            if self.battery_lvl < 0:
-                self.battery_lvl = 0
-        print('Battery Level drained: ' + repr(self.battery_lvl))
-        self.notify_battery_level()
-        return True
-
-    def ReadValue(self, options):
-        print('Battery Level read: ' + repr(self.battery_lvl))
-        return [dbus.Byte(self.battery_lvl)]
-
-    def StartNotify(self):
-        if self.notifying:
-            print('Already notifying, nothing to do')
-            return
-
-        self.notifying = True
-        self.notify_battery_level()
-
-    def StopNotify(self):
-        if not self.notifying:
-            print('Not notifying, nothing to do')
-            return
-
-        self.notifying = False
-
-
 class TestService(Service):
     """
     Dummy test service that provides characteristics and descriptors that
     exercise various API functionality.
     """
-    TEST_SVC_UUID = '00002803-0000-1000-8000-00805f9b34e0'
+    TEST_SVC_UUID = '00002803-0000-1000-8000-00805f9b34a0'
 
     def __init__(self, bus, index):
         Service.__init__(self, bus, index, self.TEST_SVC_UUID, True)
         self.add_characteristic(TestCharacteristic(bus, 0, self))
-
 class TestCharacteristic(Characteristic):
     """
     Dummy test characteristic. Allows writing arbitrary bytes to its value, and
@@ -424,11 +268,11 @@ class TestCharacteristic(Characteristic):
     TEST_CHRC_UUID = '00002803-0000-1000-8000-00805f9b34e1'
 
 #    def addTest(self):
-#		if(self.value > 100):
-#			self.value = 0
-#		self.value += 1
-#		print('Test value: ' + repr(self.value))
-#		return True
+#               if(self.value > 100):
+#                       self.value = 0
+#               self.value += 1
+#               print('Test value: ' + repr(self.value))
+#               return True
 
     def __init__(self, bus, index, service):
         Characteristic.__init__(
@@ -439,12 +283,10 @@ class TestCharacteristic(Characteristic):
         self.value = 0
         GObject.timeout_add(5000, self.addTest)
         self.add_descriptor(TestDescriptor(bus, 0, self))
-        self.add_descriptor(
-                CharacteristicUserDescriptionDescriptor(bus, 1, self))
-		
+
     def addTest(self):
 
-        self.value = GPIO.input(sensor_in)^01 
+        self.value = GPIO.input(sensor_in)^01
         print('sensor value: ' + repr(self.value))
         return True
 
@@ -457,12 +299,11 @@ class TestCharacteristic(Characteristic):
         print('TestCharacteristic Write: ' + repr(value))
         self.value = value
 
-
 class TestDescriptor(Descriptor):
     """
     Dummy test descriptor. Returns a static value.
     """
-    TEST_DESC_UUID = '00002803-0000-1000-8000-00805f9b34e2'
+    TEST_DESC_UUID = '00002803-0000-1000-8000-00805f9b34a2'
 
     def __init__(self, bus, index, characteristic):
         Descriptor.__init__(
@@ -475,31 +316,6 @@ class TestDescriptor(Descriptor):
         return [
                 dbus.Byte('T'), dbus.Byte('e'), dbus.Byte('s'), dbus.Byte('t')
         ]
-
-
-class CharacteristicUserDescriptionDescriptor(Descriptor):
-    """
-    Writable CUD descriptor.
-    """
-    CUD_UUID = '2901'
-
-    def __init__(self, bus, index, characteristic):
-        self.writable = 'writable-auxiliaries' in characteristic.flags
-        self.value = array.array('B', b'This is a characteristic for testing')
-        self.value = self.value.tolist()
-        Descriptor.__init__(
-                self, bus, index,
-                self.CUD_UUID,
-                ['read', 'write'],
-                characteristic)
-
-    def ReadValue(self, options):
-        return self.value
-
-    def WriteValue(self, value, options):
-        if not self.writable:
-            raise NotPermittedException()
-        self.value = value
 
 def register_app_cb():
     print('GATT application registered')
@@ -521,14 +337,6 @@ def find_adapter(bus):
 
     return None
 
-def register_ad_cb():
-    print 'Advertisement registered'
-
-
-def register_ad_error_cb(error):
-    print 'Failed to register advertisement: ' + str(error)
-    mainloop.quit()
-
 def main():
     global mainloop
 
@@ -541,16 +349,6 @@ def main():
         print('GattManager1 interface not found')
         return
 
-    adapter_props = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, adapter),
-                                   "org.freedesktop.DBus.Properties");
-
-    adapter_props.Set("org.bluez.Adapter1", "Powered", dbus.Boolean(1))
-
-    ad_manager = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, adapter),
-                                LE_ADVERTISING_MANAGER_IFACE)
-
-    test_advertisement = TestAdvertisement(bus, 0)
-
     service_manager = dbus.Interface(
             bus.get_object(BLUEZ_SERVICE_NAME, adapter),
             GATT_MANAGER_IFACE)
@@ -558,11 +356,6 @@ def main():
     app = Application(bus)
 
     mainloop = GObject.MainLoop()
-
-    print('Registering RegisterAdvertisement ...')
-    ad_manager.RegisterAdvertisement(test_advertisement.get_path(), {},
-                                     reply_handler=register_ad_cb,
-                                     error_handler=register_ad_error_cb)
 
     print('Registering GATT application...')
 
@@ -574,3 +367,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
